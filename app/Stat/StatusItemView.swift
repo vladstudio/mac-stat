@@ -30,7 +30,7 @@ final class StatusItemView: NSView {
     private let iconH: CGFloat = 7
     private let numberY: CGFloat = 6
     private let minBlockW: CGFloat = 16
-    private let blockGap: CGFloat = 4
+    private let blockGap: CGFloat = 8
     private let fontSize: CGFloat = 11
 
     override init(frame: NSRect) {
