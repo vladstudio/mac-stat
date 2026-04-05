@@ -1,8 +1,18 @@
 import Cocoa
 import CoreText
 
+enum StatBlock: String, CaseIterable {
+    case cpu = "CPU"
+    case gpu = "GPU"
+    case download = "Download"
+    case upload = "Upload"
+
+    var defaultsKey: String { "visible.\(rawValue)" }
+}
+
 final class StatusItemView: NSView {
     var stats = Stats() { didSet { updateWidth(); needsDisplay = true } }
+    var visibleBlocks = Set(StatBlock.allCases) { didSet { updateWidth(); needsDisplay = true } }
 
     private var oswaldFont: NSFont!
     private var iconCPU: NSImage!
@@ -18,10 +28,10 @@ final class StatusItemView: NSView {
     private let blockH: CGFloat = 18
     private let iconY: CGFloat = 1
     private let iconH: CGFloat = 7
-    private let numberY: CGFloat = 8
+    private let numberY: CGFloat = 6
     private let minBlockW: CGFloat = 16
-    private let blockGap: CGFloat = 8
-    private let fontSize: CGFloat = 10
+    private let blockGap: CGFloat = 4
+    private let fontSize: CGFloat = 11
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -39,7 +49,7 @@ final class StatusItemView: NSView {
         }
         oswaldFont = NSFont(name: "Oswald", size: fontSize)
             ?? NSFont(name: "Oswald-Light", size: fontSize)
-            ?? NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .regular)
+            ?? NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .light)
 
         iconCPU = loadIcon("cpu")
         iconGPU = loadIcon("gpu")
@@ -57,7 +67,6 @@ final class StatusItemView: NSView {
         // Scale to exactly 7pt tall (14px @2x), preserve aspect ratio
         let scale = iconH / (img.size.height / 2)
         img.size = NSSize(width: (img.size.width / 2) * scale, height: iconH)
-        img.isTemplate = true
         return img
     }
 
@@ -74,21 +83,20 @@ final class StatusItemView: NSView {
     private func blocks() -> [(icon: NSImage, text: String)] {
         let dl = stats.downloadDisplay
         let ul = stats.uploadDisplay
-        return [
-            (iconCPU, "\(stats.cpuLoad)"),
-            (iconGPU, "\(stats.gpuLoad)"),
-            (dl.isMega ? iconDownM : iconDownK, "\(dl.value)"),
-            (ul.isMega ? iconUpM : iconUpK, "\(ul.value)"),
+        let all: [(block: StatBlock, icon: NSImage, text: String)] = [
+            (.cpu, iconCPU, "\(stats.cpuLoad)"),
+            (.gpu, iconGPU, "\(stats.gpuLoad)"),
+            (.download, dl.isMega ? iconDownM : iconDownK, "\(dl.value)"),
+            (.upload, ul.isMega ? iconUpM : iconUpK, "\(ul.value)"),
         ]
+        return all.filter { visibleBlocks.contains($0.block) }.map { ($0.icon, $0.text) }
     }
 
     private func totalWidth() -> CGFloat {
-        var w: CGFloat = 0
-        for (i, b) in blocks().enumerated() {
-            w += blockWidth(icon: b.icon, text: b.text)
-            if i < 3 { w += blockGap }
-        }
-        return w
+        let b = blocks()
+        if b.isEmpty { return 0 }
+        let content = b.map { blockWidth(icon: $0.icon, text: $0.text) }.reduce(0, +)
+        return content + blockGap * CGFloat(b.count - 1)
     }
 
     func updateWidth() {

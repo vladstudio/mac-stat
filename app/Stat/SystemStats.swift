@@ -26,6 +26,7 @@ struct Stats {
 
 @MainActor
 final class SystemStats {
+    private let hostPort = mach_host_self()
     private var prevCPUInfo: processor_info_array_t?
     private var prevCPUCount: mach_msg_type_number_t = 0
     private var prevNetIn: UInt64 = 0
@@ -55,7 +56,7 @@ final class SystemStats {
         var cpuInfoCount: mach_msg_type_number_t = 0
 
         let result = host_processor_info(
-            mach_host_self(),
+            hostPort,
             PROCESSOR_CPU_LOAD_INFO,
             &numCPUs,
             &cpuInfo,
@@ -110,22 +111,27 @@ final class SystemStats {
         guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else { return 0 }
         defer { IOObjectRelease(iterator) }
 
-        var entry: io_registry_entry_t = IOIteratorNext(iterator)
+        var entry = IOIteratorNext(iterator)
         while entry != 0 {
-            defer { IOObjectRelease(entry); entry = IOIteratorNext(iterator) }
             var props: Unmanaged<CFMutableDictionary>?
-            guard IORegistryEntryCreateCFProperties(entry, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS,
-                  let dict = props?.takeRetainedValue() as? [String: Any] else { continue }
-
-            if let perfStats = dict["PerformanceStatistics"] as? [String: Any] {
-                // Try known keys for GPU utilization
-                if let util = perfStats["GPU Activity(%)"] as? Int { return util }
-                if let util = perfStats["Device Utilization %"] as? Int { return util }
-                if let util = perfStats["GPU Core Utilization"] as? Int { return util }
-                // Some drivers report as a 0-100_000_000 range
-                if let util = perfStats["gpuCoreUtilizationComponent"] as? Int { return util / 10_000_00 }
+            if IORegistryEntryCreateCFProperties(entry, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+               let dict = props?.takeRetainedValue() as? [String: Any],
+               let perfStats = dict["PerformanceStatistics"] as? [String: Any] {
+                let util = gpuUtil(from: perfStats)
+                IOObjectRelease(entry)
+                return util
             }
+            IOObjectRelease(entry)
+            entry = IOIteratorNext(iterator)
         }
+        return 0
+    }
+
+    private func gpuUtil(from stats: [String: Any]) -> Int {
+        if let v = stats["GPU Activity(%)"] as? Int { return v }
+        if let v = stats["Device Utilization %"] as? Int { return v }
+        if let v = stats["GPU Core Utilization"] as? Int { return v }
+        if let v = stats["gpuCoreUtilizationComponent"] as? Int { return v / 1_000_000 }
         return 0
     }
 
