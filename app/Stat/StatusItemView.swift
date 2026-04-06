@@ -112,12 +112,17 @@ final class StatusItemView: NSView {
         }
     }
 
+    private var menuBarColor: NSColor {
+        effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .white : .black
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         let allBlocks = blocks()
+        let color = menuBarColor
 
         let attrs: [NSAttributedString.Key: Any] = [
             .font: oswaldFont!,
-            .foregroundColor: NSColor.labelColor,
+            .foregroundColor: color,
         ]
 
         let topOffset = (bounds.height - blockH) / 2
@@ -147,7 +152,7 @@ final class StatusItemView: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         ctx.saveGState()
         ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-        NSColor.labelColor.setFill()
+        menuBarColor.setFill()
         ctx.fill(rect)
         image.draw(in: rect, from: .zero, operation: .destinationIn, fraction: 1.0)
         ctx.endTransparencyLayer()
