@@ -34,6 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Start on Login", action: #selector(toggleLogin), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Check for Updates…", action: #selector(checkUpdates), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "About Stat", action: #selector(openAbout), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Stat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) {
@@ -71,6 +72,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func checkUpdates(_ sender: NSMenuItem) {
         UpdateChecker.check(repo: "vladstudio/mac-stat", appName: "Stat", manual: true)
+    }
+
+    @objc private func openAbout(_ sender: NSMenuItem) {
+        NSWorkspace.shared.open(URL(string: "https://stat.vlad.studio")!)
     }
 }
 
