@@ -6,6 +6,7 @@ enum StatBlock: String, CaseIterable {
     case gpu = "GPU"
     case download = "Download"
     case upload = "Upload"
+    case weekday = "Weekday"
 
     var defaultsKey: String { "visible.\(rawValue)" }
 }
@@ -21,6 +22,7 @@ final class StatusItemView: NSView {
     private var iconDownM: NSImage!
     private var iconUpK: NSImage!
     private var iconUpM: NSImage!
+    private var iconDays: [NSImage] = []
 
     // Layout constants (points)
     // Each block: icon on top (y=1, h=7), number on bottom (y=8)
@@ -57,6 +59,7 @@ final class StatusItemView: NSView {
         iconDownM = loadIcon("download-m")
         iconUpK = loadIcon("upload-k")
         iconUpM = loadIcon("upload-m")
+        iconDays = ["day-sun", "day-mon", "day-tue", "day-wed", "day-thu", "day-fri", "day-sat"].map { loadIcon($0) }
     }
 
     private func loadIcon(_ name: String) -> NSImage {
@@ -83,11 +86,14 @@ final class StatusItemView: NSView {
     private func blocks() -> [(icon: NSImage, text: String)] {
         let dl = stats.downloadDisplay
         let ul = stats.uploadDisplay
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let day = Calendar.current.component(.day, from: Date())
         let all: [(block: StatBlock, icon: NSImage, text: String)] = [
             (.cpu, iconCPU, "\(stats.cpuLoad)"),
             (.gpu, iconGPU, "\(stats.gpuLoad)"),
             (.download, dl.isMega ? iconDownM : iconDownK, "\(dl.value)"),
             (.upload, ul.isMega ? iconUpM : iconUpK, "\(ul.value)"),
+            (.weekday, iconDays[weekday - 1], "\(day)"),
         ]
         return all.filter { visibleBlocks.contains($0.block) }.map { ($0.icon, $0.text) }
     }
@@ -111,7 +117,7 @@ final class StatusItemView: NSView {
 
         let attrs: [NSAttributedString.Key: Any] = [
             .font: oswaldFont!,
-            .foregroundColor: NSColor.controlTextColor,
+            .foregroundColor: NSColor.labelColor,
         ]
 
         let topOffset = (bounds.height - blockH) / 2
@@ -141,7 +147,7 @@ final class StatusItemView: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         ctx.saveGState()
         ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-        NSColor.controlTextColor.setFill()
+        NSColor.labelColor.setFill()
         ctx.fill(rect)
         image.draw(in: rect, from: .zero, operation: .destinationIn, fraction: 1.0)
         ctx.endTransparencyLayer()
