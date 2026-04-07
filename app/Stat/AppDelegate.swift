@@ -71,11 +71,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func checkUpdates(_ sender: NSMenuItem) {
-        UpdateChecker.check(repo: "vladstudio/mac-stat", appName: "Stat", manual: true)
+        UpdateChecker.check(repo: "vladstudio/stat", appName: "Stat", manual: true)
     }
 
     @objc private func openAbout(_ sender: NSMenuItem) {
-        NSWorkspace.shared.open(URL(string: "https://stat.vlad.studio")!)
+        NSWorkspace.shared.open(URL(string: "https://apps.vlad.studio/stat")!)
     }
 }
 

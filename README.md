@@ -8,12 +8,12 @@ Tiny menu bar app that shows CPU, GPU, network speed, and weekday at a glance.
 
 ## Install
 
-[Download Stat.zip](https://github.com/vladstudio/mac-stat/releases/latest/download/Stat.zip), unzip, and move to Applications.
+[Download Stat.zip](https://github.com/vladstudio/stat/releases/latest/download/Stat.zip), unzip, and move to Applications.
 
 Or via terminal:
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vladstudio/mac-stat/main/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/vladstudio/stat/main/install.sh)"
 ```
 
 ## License
