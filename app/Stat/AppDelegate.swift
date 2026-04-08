@@ -42,6 +42,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         statusItem.menu = menu
 
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.systemStats.invalidateBaseline() }
+        }
+
         // Initial read (establishes baseline for network deltas)
         statusView.stats = systemStats.read()
 

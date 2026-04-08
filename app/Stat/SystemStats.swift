@@ -33,6 +33,14 @@ final class SystemStats {
     private var prevNetOut: UInt64 = 0
     private var hasBaseline = false
 
+    func invalidateBaseline() {
+        hasBaseline = false
+        if let prev = prevCPUInfo {
+            vm_deallocate(mach_task_self_, vm_address_t(bitPattern: prev), vm_size_t(prevCPUCount) * vm_size_t(MemoryLayout<integer_t>.stride))
+            prevCPUInfo = nil
+        }
+    }
+
     func read() -> Stats {
         var stats = Stats()
         stats.cpuLoad = readCPU()
@@ -64,21 +72,21 @@ final class SystemStats {
         )
         guard result == KERN_SUCCESS, let cpuInfo else { return 0 }
 
-        var totalUser: Int32 = 0, totalSystem: Int32 = 0, totalIdle: Int32 = 0, totalNice: Int32 = 0
-        var prevTotalUser: Int32 = 0, prevTotalSystem: Int32 = 0, prevTotalIdle: Int32 = 0, prevTotalNice: Int32 = 0
+        var totalUser: Int64 = 0, totalSystem: Int64 = 0, totalIdle: Int64 = 0, totalNice: Int64 = 0
+        var prevTotalUser: Int64 = 0, prevTotalSystem: Int64 = 0, prevTotalIdle: Int64 = 0, prevTotalNice: Int64 = 0
 
         for i in 0..<Int(numCPUs) {
             let offset = Int(CPU_STATE_MAX) * i
-            totalUser += cpuInfo[offset + Int(CPU_STATE_USER)]
-            totalSystem += cpuInfo[offset + Int(CPU_STATE_SYSTEM)]
-            totalIdle += cpuInfo[offset + Int(CPU_STATE_IDLE)]
-            totalNice += cpuInfo[offset + Int(CPU_STATE_NICE)]
+            totalUser += Int64(cpuInfo[offset + Int(CPU_STATE_USER)])
+            totalSystem += Int64(cpuInfo[offset + Int(CPU_STATE_SYSTEM)])
+            totalIdle += Int64(cpuInfo[offset + Int(CPU_STATE_IDLE)])
+            totalNice += Int64(cpuInfo[offset + Int(CPU_STATE_NICE)])
 
             if let prev = prevCPUInfo {
-                prevTotalUser += prev[offset + Int(CPU_STATE_USER)]
-                prevTotalSystem += prev[offset + Int(CPU_STATE_SYSTEM)]
-                prevTotalIdle += prev[offset + Int(CPU_STATE_IDLE)]
-                prevTotalNice += prev[offset + Int(CPU_STATE_NICE)]
+                prevTotalUser += Int64(prev[offset + Int(CPU_STATE_USER)])
+                prevTotalSystem += Int64(prev[offset + Int(CPU_STATE_SYSTEM)])
+                prevTotalIdle += Int64(prev[offset + Int(CPU_STATE_IDLE)])
+                prevTotalNice += Int64(prev[offset + Int(CPU_STATE_NICE)])
             }
         }
 
@@ -132,30 +140,35 @@ final class SystemStats {
         if let v = stats["Device Utilization %"] as? Int { return v }
         if let v = stats["GPU Core Utilization"] as? Int { return v }
         if let v = stats["gpuCoreUtilizationComponent"] as? Int { return v / 1_000_000 }
+        for (key, value) in stats where key.contains("tilization") || key.contains("Activity") {
+            if let v = value as? Int { return v > 100_000 ? v / 1_000_000 : v }
+        }
         return 0
     }
 
     // MARK: - Network
 
     private func readNetBytes() -> (UInt64, UInt64) {
-        var totalIn: UInt64 = 0
-        var totalOut: UInt64 = 0
-        var ifaddr: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else { return (0, 0) }
-        defer { freeifaddrs(ifaddr) }
+        var mib = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
+        var len: size_t = 0
+        guard sysctl(&mib, 6, nil, &len, nil, 0) == 0 else { return (0, 0) }
+        let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: len)
+        defer { buf.deallocate() }
+        guard sysctl(&mib, 6, buf, &len, nil, 0) == 0 else { return (0, 0) }
 
-        var ptr: UnsafeMutablePointer<ifaddrs>? = firstAddr
-        while let addr = ptr {
-            let name = String(cString: addr.pointee.ifa_name)
-            // Skip loopback
-            if addr.pointee.ifa_addr?.pointee.sa_family == UInt8(AF_LINK) && name != "lo0" {
-                if let data = addr.pointee.ifa_data {
-                    let networkData = data.assumingMemoryBound(to: if_data.self).pointee
-                    totalIn += UInt64(networkData.ifi_ibytes)
-                    totalOut += UInt64(networkData.ifi_obytes)
+        var totalIn: UInt64 = 0, totalOut: UInt64 = 0
+        var ptr = UnsafeMutableRawPointer(buf)
+        let end = ptr + len
+        while ptr < end {
+            let hdr = ptr.assumingMemoryBound(to: if_msghdr.self).pointee
+            if hdr.ifm_type == RTM_IFINFO2 {
+                let hdr2 = ptr.assumingMemoryBound(to: if_msghdr2.self).pointee
+                if hdr2.ifm_data.ifi_type != UInt8(IFT_LOOP) {
+                    totalIn += hdr2.ifm_data.ifi_ibytes
+                    totalOut += hdr2.ifm_data.ifi_obytes
                 }
             }
-            ptr = addr.pointee.ifa_next
+            ptr += Int(hdr.ifm_msglen)
         }
         return (totalIn, totalOut)
     }
