@@ -7,20 +7,20 @@ struct Stats {
     var downloadBytesPerSec: UInt64 = 0
     var uploadBytesPerSec: UInt64 = 0
 
-    var downloadDisplay: (value: Int, isMega: Bool) {
+    var downloadDisplay: (value: String, isMega: Bool) {
         let kbps = downloadBytesPerSec / 1024
         if kbps >= 1000 {
-            return (Int(kbps / 1024), true)
+            return (String(format: "%.2f", Double(kbps) / 1024.0), true)
         }
-        return (Int(kbps), false)
+        return ("\(kbps)", false)
     }
 
-    var uploadDisplay: (value: Int, isMega: Bool) {
+    var uploadDisplay: (value: String, isMega: Bool) {
         let kbps = uploadBytesPerSec / 1024
         if kbps >= 1000 {
-            return (Int(kbps / 1024), true)
+            return (String(format: "%.2f", Double(kbps) / 1024.0), true)
         }
-        return (Int(kbps), false)
+        return ("\(kbps)", false)
     }
 }
 

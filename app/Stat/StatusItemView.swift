@@ -91,8 +91,8 @@ final class StatusItemView: NSView {
         let all: [(block: StatBlock, icon: NSImage, text: String)] = [
             (.cpu, iconCPU, "\(stats.cpuLoad)"),
             (.gpu, iconGPU, "\(stats.gpuLoad)"),
-            (.download, dl.isMega ? iconDownM : iconDownK, "\(dl.value)"),
-            (.upload, ul.isMega ? iconUpM : iconUpK, "\(ul.value)"),
+            (.download, dl.isMega ? iconDownM : iconDownK, dl.value),
+            (.upload, ul.isMega ? iconUpM : iconUpK, ul.value),
             (.weekday, iconDays[weekday - 1], "\(day)"),
         ]
         return all.filter { visibleBlocks.contains($0.block) }.map { ($0.icon, $0.text) }
