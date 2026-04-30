@@ -1,9 +1,11 @@
 import Foundation
 import IOKit
+import CIOHIDPrivate
 
 struct Stats {
     var cpuLoad: Int = 0
     var gpuLoad: Int = 0
+    var temperature: Int = 0
     var downloadBytesPerSec: UInt64 = 0
     var uploadBytesPerSec: UInt64 = 0
 
@@ -33,6 +35,33 @@ final class SystemStats {
     private var prevNetOut: UInt64 = 0
     private var hasBaseline = false
 
+    private let tempClient: AnyObject?
+    private let tempServices: [AnyObject]
+
+    init() {
+        let matching: [String: Any] = [
+            "PrimaryUsagePage": 0xff00,
+            "PrimaryUsage": 0x0005,
+        ]
+        let client = IOHIDEventSystemClientCreate(kCFAllocatorDefault)
+        var sensors: [AnyObject] = []
+        if let client {
+            _ = IOHIDEventSystemClientSetMatching(client, matching as CFDictionary)
+            if let all = IOHIDEventSystemClientCopyServices(client) as? [AnyObject] {
+                sensors = all.filter { svc in
+                    guard let name = IOHIDServiceClientCopyProperty(svc, "Product" as CFString) as? String else { return false }
+                    // M3/M4 die-area sensors + M1/M2 per-cluster sensors.
+                    return name.hasPrefix("PMU tdie")
+                        || name.hasPrefix("pACC MTR")
+                        || name.hasPrefix("eACC MTR")
+                        || name.hasPrefix("GPU MTR")
+                }
+            }
+        }
+        self.tempClient = client
+        self.tempServices = sensors
+    }
+
     func invalidateBaseline() {
         hasBaseline = false
         if let prev = prevCPUInfo {
@@ -45,6 +74,7 @@ final class SystemStats {
         var stats = Stats()
         stats.cpuLoad = readCPU()
         stats.gpuLoad = readGPU()
+        stats.temperature = readTemperature()
         let (netIn, netOut) = readNetBytes()
         if hasBaseline {
             stats.downloadBytesPerSec = netIn > prevNetIn ? netIn - prevNetIn : 0
@@ -144,6 +174,18 @@ final class SystemStats {
             if let v = value as? Int { return v > 100_000 ? v / 1_000_000 : v }
         }
         return 0
+    }
+
+    // MARK: - Temperature
+
+    private func readTemperature() -> Int {
+        var maxTemp: Double = 0
+        for svc in tempServices {
+            guard let event = IOHIDServiceClientCopyEvent(svc, 15, 0, 0) else { continue }
+            let t = IOHIDEventGetFloatValue(event, 15 << 16)
+            if t > -100, t < 200, t > maxTemp { maxTemp = t }
+        }
+        return Int(maxTemp.rounded())
     }
 
     // MARK: - Network

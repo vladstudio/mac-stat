@@ -4,6 +4,7 @@ import CoreText
 enum StatBlock: String, CaseIterable {
     case cpu = "CPU"
     case gpu = "GPU"
+    case temperature = "Temperature"
     case download = "Download"
     case upload = "Upload"
     case weekday = "Weekday"
@@ -18,6 +19,7 @@ final class StatusItemView: NSView {
     private var oswaldFont: NSFont!
     private var iconCPU: NSImage!
     private var iconGPU: NSImage!
+    private var iconTemp: NSImage!
     private var iconDownK: NSImage!
     private var iconDownM: NSImage!
     private var iconUpK: NSImage!
@@ -55,6 +57,7 @@ final class StatusItemView: NSView {
 
         iconCPU = loadIcon("cpu")
         iconGPU = loadIcon("gpu")
+        iconTemp = loadIcon("temp")
         iconDownK = loadIcon("download-k")
         iconDownM = loadIcon("download-m")
         iconUpK = loadIcon("upload-k")
@@ -91,6 +94,7 @@ final class StatusItemView: NSView {
         let all: [(block: StatBlock, icon: NSImage, text: String)] = [
             (.cpu, iconCPU, "\(stats.cpuLoad)"),
             (.gpu, iconGPU, "\(stats.gpuLoad)"),
+            (.temperature, iconTemp, "\(stats.temperature)"),
             (.download, dl.isMega ? iconDownM : iconDownK, dl.value),
             (.upload, ul.isMega ? iconUpM : iconUpK, ul.value),
             (.weekday, iconDays[weekday - 1], "\(day)"),

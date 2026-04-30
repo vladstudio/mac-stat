@@ -8,11 +8,20 @@ let package = Package(
         .package(path: "../app-kit"),
     ],
     targets: [
+        .systemLibrary(
+            name: "CIOHIDPrivate",
+            path: "app/CIOHIDPrivate"
+        ),
         .executableTarget(
             name: "Stat",
-            dependencies: [.product(name: "MacAppKit", package: "app-kit")],
+            dependencies: [.product(name: "MacAppKit", package: "app-kit"), "CIOHIDPrivate"],
             path: "app/Stat",
             exclude: ["Info.plist"]
-        )
+        ),
+        .executableTarget(
+            name: "TempTest",
+            dependencies: ["CIOHIDPrivate"],
+            path: "app/TempTest"
+        ),
     ]
 )
